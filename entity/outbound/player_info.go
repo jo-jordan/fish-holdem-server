@@ -1,4 +1,4 @@
-package main
+package outbound
 
 import "encoding/json"
 

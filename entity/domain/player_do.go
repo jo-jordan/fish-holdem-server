@@ -1,9 +1,9 @@
-package main
+package domain
 
 import "github.com/gorilla/websocket"
 
-type UserConn struct {
+type PlayerDO struct {
 	UserID   int64
 	Username string
-	conn     *websocket.Conn
+	Conn     *websocket.Conn
 }
