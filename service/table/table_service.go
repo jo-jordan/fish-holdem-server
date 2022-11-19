@@ -45,7 +45,7 @@ func MatchTable(playerDO *domain.PlayerDO) (*outbound.TableInfo, *outbound.Playe
 		DataType:     "table_info",
 	}
 
-	playerList := make([]outbound.Player, tableJoined.PlayerSize)
+	playerList := make([]outbound.Player, 0)
 
 	for _, v := range tableJoined.PlayerListBySeat {
 		playerList = append(playerList,
