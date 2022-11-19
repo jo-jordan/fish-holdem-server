@@ -1,9 +1,6 @@
 package domain
 
-import "github.com/gorilla/websocket"
-
 type PlayerDO struct {
-	Conn        *websocket.Conn
 	Username    string   `json:"username"`
 	ID          int64    `json:"id"`
 	Balance     float64  `json:"balance"`

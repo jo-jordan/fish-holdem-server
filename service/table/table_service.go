@@ -9,29 +9,29 @@ import (
 
 func MatchTable(playerDO *domain.PlayerDO) (*outbound.TableInfo, *outbound.PlayerInfo) {
 
-	tableNum := len(global.TableMap)
 	var tableJoined domain.TableDO
-	if tableNum == 0 {
-		tableJoined = createTable()
-		tableJoined.PlayerListBySeat = append(tableJoined.PlayerListBySeat, *playerDO)
-		global.TableMap[tableJoined.TableID] = tableJoined
-	} else {
-		joined := false
-		for _, v := range global.TableMap {
-			if len(v.PlayerListBySeat) < v.PlayerSize {
-				v.PlayerListBySeat = append(v.PlayerListBySeat, *playerDO)
-				joined = true
-				tableJoined = v
-				global.TableMap[tableJoined.TableID] = tableJoined
-				break
-			}
+
+	tableNum := 0
+	joined := false
+	global.TableMap.Range(func(key, value any) bool {
+		tableDO := value.(domain.TableDO)
+		tableNum += 1
+
+		if len(tableDO.PlayerListBySeat) < tableDO.PlayerSize {
+			tableDO.PlayerListBySeat = append(tableDO.PlayerListBySeat, *playerDO)
+			joined = true
+			tableJoined = tableDO
+			global.TableMap.Store(tableJoined.TableID, tableJoined)
+			return false
 		}
 
-		if !joined {
-			tableJoined = createTable()
-			tableJoined.PlayerListBySeat = append(tableJoined.PlayerListBySeat, *playerDO)
-			global.TableMap[tableJoined.TableID] = tableJoined
-		}
+		return true
+	})
+
+	if !joined {
+		tableJoined = createTable()
+		tableJoined.PlayerListBySeat = append(tableJoined.PlayerListBySeat, *playerDO)
+		global.TableMap.Store(tableJoined.TableID, tableJoined)
 	}
 
 	tableInfo := outbound.TableInfo{
