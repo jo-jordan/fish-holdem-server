@@ -8,5 +8,5 @@ type TableDO struct {
 	Countdown        int64    `json:"countdown"`
 	BetRate          string   `json:"bet_rate"`
 	CardsOnTable     []string `json:"cards_on_table"`
-	PlayerSize       int64    `json:"player_size"`
+	PlayerSize       int      `json:"player_size"` // config
 }

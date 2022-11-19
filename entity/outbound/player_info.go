@@ -13,13 +13,13 @@ func (r *PlayerInfo) Marshal() ([]byte, error) {
 }
 
 type PlayerInfo struct {
-	PlayerList []PlayerList `json:"player_list"`
-	DataType   string       `json:"data_type"`
+	PlayerList []Player `json:"player_list"`
+	DataType   string   `json:"data_type"`
 }
 
-type PlayerList struct {
+type Player struct {
+	Username    string   `json:"username"`
 	ID          int64    `json:"id"`
-	Name        string   `json:"name"`
 	Balance     float64  `json:"balance"`
 	Bet         int64    `json:"bet"`
 	Status      string   `json:"status"`

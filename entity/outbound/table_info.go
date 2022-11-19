@@ -2,7 +2,7 @@ package outbound
 
 import "encoding/json"
 
-func UnmarshalGameInfo(data []byte) (TableInfo, error) {
+func UnmarshalTableInfo(data []byte) (TableInfo, error) {
 	var r TableInfo
 	err := json.Unmarshal(data, &r)
 	return r, err
@@ -19,6 +19,6 @@ type TableInfo struct {
 	Countdown    int64    `json:"countdown"`
 	BetRate      string   `json:"bet_rate"`
 	CardsOnTable []string `json:"cards_on_table"`
-	PlayerSize   int64    `json:"player_size"`
+	PlayerSize   int      `json:"player_size"`
 	DataType     string   `json:"data_type"`
 }

@@ -7,6 +7,10 @@ import (
 	"github.com/jo-jordan/fish-holdem-server/entity/domain"
 	"github.com/jo-jordan/fish-holdem-server/entity/inbound"
 	"github.com/jo-jordan/fish-holdem-server/entity/outbound"
+	"github.com/jo-jordan/fish-holdem-server/misc/global"
+	"github.com/jo-jordan/fish-holdem-server/service/player"
+	"github.com/jo-jordan/fish-holdem-server/service/table"
+	"github.com/jo-jordan/fish-holdem-server/util"
 	"log"
 	"net/http"
 )
@@ -15,26 +19,72 @@ var addr = flag.String("addr", "localhost:8080", "http service address")
 
 var upgrader = websocket.Upgrader{} // use default options
 
-var id int64 = 0
-var connMap = make(map[string]domain.PlayerDO)
-var tableMap = make(map[int64]domain.TableDO)
-
 func game(w http.ResponseWriter, r *http.Request) {
 	c, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Print("upgrade:", err)
 		return
 	}
-	mt, msg, err := c.ReadMessage()
+	_, msg, err := c.ReadMessage()
 	log.Printf("recv: %s", msg)
+	baseInbound, err := inbound.UnmarshalBaseInbound(msg)
+	if err != nil {
+		log.Printf("Data format is wrong")
+		c.Close()
+		return
+	}
+	token := r.Header.Get("Game-Token")
+	playerDO, playerExists := global.PlayerMap[token]
+	if !playerExists {
+		// TODO
+		log.Printf("Player[%s] is not login: id: %d\n", token, playerDO.ID)
+		c.Close()
+		return
+	}
 
-	gameData, err := makeGameInfo()
-	err = c.WriteMessage(mt, gameData)
+	playerDO.Conn = c
+	global.PlayerMap[token] = playerDO
+	switch baseInbound.ReqType {
+	case "MatchTable":
+		{
+			tableInfo, playerInfo := table_service.MatchTable(&playerDO)
 
-	playerData, err := makePlayerList()
-	err = c.WriteMessage(mt, playerData)
+			tableDO := global.TableMap[tableInfo.TableID]
+			for _, p := range tableDO.PlayerListBySeat {
+				if p.Conn == nil {
+					return
+				}
+				err := p.Conn.WriteJSON(tableInfo)
+				if err != nil {
+					log.Println(err)
+					continue
+				}
 
-	log.Printf("Table match successful: id: %d\n", id)
+				err = p.Conn.WriteJSON(playerInfo)
+				if err != nil {
+					log.Println(err)
+					continue
+				}
+				log.Printf("resp: Player[%s] joined room[%d]\n", p.Username, tableDO.TableID)
+			}
+		}
+	case "ActionCall":
+		{
+			player_service.ActionCall()
+		}
+	case "ActionFold":
+		{
+		}
+	case "ActionCheck":
+		{
+		}
+	case "ActionRaise":
+		{
+		}
+	case "QuitGame":
+		{
+		}
+	}
 }
 
 func login(w http.ResponseWriter, r *http.Request) {
@@ -43,8 +93,6 @@ func login(w http.ResponseWriter, r *http.Request) {
 		log.Print("upgrade:", err)
 		return
 	}
-
-	remoteAddr := c.RemoteAddr().String()
 
 	mt, msg, err := c.ReadMessage()
 
@@ -61,77 +109,18 @@ func login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	id = id + 1
-	userConn := domain.PlayerDO{Conn: c, Username: info.Username, UserID: id}
+	userConn := domain.PlayerDO{Conn: c, Username: info.Username, ID: util.GenID()}
 
-	connMap[remoteAddr] = userConn
-
-	token := fmt.Sprintf("Token-%s", info.Username)
+	token := fmt.Sprintf("Token-%s-%d", info.Username, userConn.ID)
+	global.PlayerMap[token] = userConn
 	result := outbound.LoginResultInfo{Success: true, Token: token}
 	resultData, err := result.Marshal()
 	log.Printf("Login successful: username: %s, token: %s\n", userConn.Username, token)
 	err = c.WriteMessage(mt, resultData)
 }
 
-func makePlayerList() ([]byte, error) {
-	pi := outbound.PlayerInfo{
-		DataType: "player_info",
-		PlayerList: []outbound.PlayerList{
-			{
-				ID:          1,
-				Name:        "lz",
-				Balance:     100,
-				Bet:         30,
-				Status:      "wait",
-				Role:        "Player",
-				IsOperator:  true,
-				CardsInHand: []string{"201", "303"},
-			},
-			{
-				ID:          2,
-				Name:        "xjp",
-				Balance:     10000,
-				Bet:         200,
-				Status:      "wait",
-				Role:        "Small Blind",
-				IsOperator:  false,
-				CardsInHand: []string{"101", "106"},
-			},
-			{
-				ID:          3,
-				Name:        "lq",
-				Balance:     9000,
-				Bet:         190,
-				Status:      "wait",
-				Role:        "Big Blind",
-				IsOperator:  false,
-				CardsInHand: []string{"401", "412"},
-			},
-		},
-	}
-
-	data, err := pi.Marshal()
-	return data, err
-}
-
-func makeGameInfo() ([]byte, error) {
-	id = id + 1
-	gi := outbound.TableInfo{
-		TableID:      id,
-		TotalPot:     1000,
-		Status:       "",
-		Countdown:    20,
-		BetRate:      "10/20",
-		CardsOnTable: []string{"312", "412", "109"},
-		DataType:     "game_info",
-	}
-
-	gameData, err := gi.Marshal()
-
-	return gameData, err
-}
-
 func main() {
+	global.Init()
 	flag.Parse()
 	log.SetFlags(0)
 	http.HandleFunc("/login", login)
