@@ -13,8 +13,9 @@ func (r *PlayerInfo) Marshal() ([]byte, error) {
 }
 
 type PlayerInfo struct {
-	PlayerList []Player `json:"player_list"`
-	DataType   string   `json:"data_type"`
+	PlayerList  []Player `json:"player_list"`
+	DataType    string   `json:"data_type"`
+	CurPlayerID int64    `json:"cur_player_id"`
 }
 
 type Player struct {

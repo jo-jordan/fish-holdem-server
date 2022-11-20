@@ -12,6 +12,7 @@ import (
 	"github.com/jo-jordan/fish-holdem-server/util"
 	"log"
 	"net/http"
+	"strconv"
 	"time"
 )
 
@@ -39,6 +40,8 @@ type Client struct {
 	send chan []byte
 
 	token string
+
+	playerId int64
 }
 
 var upgrader = websocket.Upgrader{
@@ -97,7 +100,7 @@ func (c *Client) dispatch(message []byte) {
 	switch baseInbound.ReqType {
 	case "MatchTable":
 		{
-			tableInfo, playerInfo := table_service.MatchTable(&playerDO)
+			tableInfo, playerInfos := table_service.MatchTable(&playerDO)
 
 			tableData, err := tableInfo.Marshal()
 			if err != nil {
@@ -105,11 +108,18 @@ func (c *Client) dispatch(message []byte) {
 			}
 			c.hub.broadcast <- tableData
 
-			playerData, err := playerInfo.Marshal()
-			if err != nil {
-				return
+			clientMap := make(map[int64]*Client, len(c.hub.clients))
+			for client, _ := range c.hub.clients {
+				clientMap[client.playerId] = client
 			}
-			c.hub.broadcast <- playerData
+			for _, info := range playerInfos {
+				cli := *clientMap[info.CurPlayerID]
+				playerData, err := info.Marshal()
+				if err != nil {
+					return
+				}
+				cli.send <- playerData
+			}
 
 			log.Printf("resp: Player[%s] joined room[%d]\n", playerDO.Username, tableInfo.TableID)
 		}
@@ -189,11 +199,16 @@ func login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userConn := domain.PlayerDO{Username: info.Username, ID: util.GenID()}
+	userConn := domain.PlayerDO{
+		Username: info.Username,
+		Balance:  0,
+		Role:     "Player",
+		ID:       util.GenID(),
+	}
 
 	token := fmt.Sprintf("Token-%s-%d", info.Username, userConn.ID)
 	global.PlayerMap.Store(token, userConn)
-	result := outbound.LoginResultInfo{Success: true, Token: token}
+	result := outbound.LoginResultInfo{Success: true, Token: token, PlayerId: userConn.ID}
 	resultData, err := result.Marshal()
 	log.Printf("Login successful: username: %s, token: %s\n", userConn.Username, token)
 	err = c.WriteMessage(mt, resultData)
@@ -205,7 +220,13 @@ func serveWs(hub *Hub, w http.ResponseWriter, r *http.Request) {
 		log.Println(err)
 		return
 	}
-	client := &Client{hub: hub, conn: conn, send: make(chan []byte, 256), token: r.Header.Get("Game-Token")}
+
+	playerId, _ := strconv.ParseInt(r.Header.Get("Player-Id"), 10, 64)
+	client := &Client{
+		hub: hub, conn: conn, send: make(chan []byte, 256),
+		token:    r.Header.Get("Game-Token"),
+		playerId: playerId,
+	}
 	client.hub.register <- client
 
 	go client.readPump()

@@ -13,6 +13,7 @@ func (r *LoginResultInfo) Marshal() ([]byte, error) {
 }
 
 type LoginResultInfo struct {
-	Success bool   `json:"success"`
-	Token   string `json:"token"`
+	Success  bool   `json:"success"`
+	Token    string `json:"token"`
+	PlayerId int64  `json:"player_id"`
 }
