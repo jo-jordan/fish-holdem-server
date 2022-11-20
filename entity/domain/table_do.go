@@ -1,5 +1,10 @@
 package domain
 
+import (
+	"sync/atomic"
+	"time"
+)
+
 type TableDO struct {
 	TableID          int64
 	PlayerListBySeat []PlayerDO
@@ -10,7 +15,22 @@ type TableDO struct {
 	CardsOnTable     []string
 	PlayerSize       int // config
 	CardsNotUsed     []string
+	CurActionPlayer  *PlayerDO
 }
+
+const (
+	// Time allowed to write a message to the peer.
+	writeWait = 10 * time.Second
+
+	// Time allowed to read the next pong message from the peer.
+	pongWait = 60 * time.Second
+
+	// Send pings to peer with this period. Must be less than pongWait.
+	pingPeriod = (pongWait * 9) / 10
+
+	// Maximum message size allowed from peer.
+	maxMessageSize = 512
+)
 
 func (t *TableDO) InitCards() {
 	t.CardsNotUsed = []string{
@@ -69,5 +89,24 @@ func (t *TableDO) InitCards() {
 		"411",
 		"412",
 		"413",
+	}
+}
+
+func (t *TableDO) StartLoop() {
+	ticker := time.NewTicker(time.Duration(t.Countdown) * time.Second)
+
+	defer ticker.Stop()
+
+	var next uint32 = 0
+	for {
+		select {
+		case <-ticker.C:
+			nextPlayer := t.PlayerListBySeat[next]
+			t.CurActionPlayer = &nextPlayer
+			atomic.AddUint32(&next, 1)
+			if atomic.LoadUint32(&next) == uint32(len(t.PlayerListBySeat)-1) {
+				atomic.StoreUint32(&next, 0)
+			}
+		}
 	}
 }

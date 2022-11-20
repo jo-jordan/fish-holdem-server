@@ -27,7 +27,9 @@ func MatchTable(playerDO *domain.PlayerDO) (*outbound.TableInfo, []*outbound.Pla
 			tableDO.PlayerListBySeat = append(tableDO.PlayerListBySeat, *playerDO)
 			joined = true
 			tableJoined = tableDO
+			playerDO.TableID = tableJoined.TableID
 			global.TableMap.Store(tableJoined.TableID, tableJoined)
+			global.PlayerMap.Store(playerDO.ID, *playerDO)
 			return false
 		}
 
@@ -37,7 +39,9 @@ func MatchTable(playerDO *domain.PlayerDO) (*outbound.TableInfo, []*outbound.Pla
 	if !joined {
 		tableJoined = createTable()
 		tableJoined.PlayerListBySeat = append(tableJoined.PlayerListBySeat, *playerDO)
+		playerDO.TableID = tableJoined.TableID
 		global.TableMap.Store(tableJoined.TableID, tableJoined)
+		global.PlayerMap.Store(playerDO.ID, *playerDO)
 	}
 
 	tableInfo := outbound.TableInfo{

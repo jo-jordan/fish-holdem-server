@@ -131,8 +131,7 @@ func (c *Client) dispatch(message []byte) {
 		{
 		}
 	case "ActionCheck":
-		{
-		}
+		player_service.ActionCheck(&playerDO)
 	case "ActionRaise":
 		{
 		}

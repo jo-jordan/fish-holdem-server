@@ -9,4 +9,5 @@ type PlayerDO struct {
 	Role        string   `json:"role"`
 	IsOperator  bool     `json:"is_operator"`
 	CardsInHand []string `json:"cards_in_hand"`
+	TableID     int64    `json:"table_id"`
 }
